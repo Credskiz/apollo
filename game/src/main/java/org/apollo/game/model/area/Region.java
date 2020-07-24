@@ -12,6 +12,7 @@ import org.apollo.game.model.area.update.UpdateOperation;
 import org.apollo.game.model.entity.Entity;
 import org.apollo.game.model.entity.EntityType;
 import org.apollo.game.model.entity.obj.DynamicGameObject;
+import org.apollo.game.model.entity.obj.StaticGameObject;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -200,8 +201,8 @@ public final class Region {
 	 */
 	public Set<RegionUpdateMessage> encode(int height) {
 		Set<RegionUpdateMessage> additions = entities.values().stream()
-			.flatMap(Set::stream) // TODO fix this to work for ground items + projectiles
-			.filter(entity -> entity instanceof DynamicGameObject && entity.getPosition().getHeight() == height)
+				.flatMap(Set::stream) // TODO: Stop hurting my eyeballs.
+				.filter(entity -> !entity.getEntityType().isMob() && !(entity instanceof StaticGameObject) && (!(entity instanceof DynamicGameObject) || entity.getPosition().getHeight() == height))
 			.map(entity -> ((GroupableEntity) entity).toUpdateOperation(this, EntityUpdateType.ADD).toMessage())
 			.collect(Collectors.toSet());
 
@@ -268,6 +269,34 @@ public final class Region {
 			.collect(Collectors.toSet());
 		return ImmutableSet.copyOf(filtered);
 	}
+
+	/**
+	 * Gets the position offset for the specified {@link Entity}.
+	 *
+	 * @param entity The Entity.
+	 * @return The position offset.
+	 */
+	public int getPositionOffset(Entity entity) {
+		return getPositionOffset(entity.getPosition());
+	}
+
+	/**
+	 * Gets the position offset for the specified {@link Position}.
+	 *
+	 * @param position The Entity.
+	 * @return The position offset.
+	 */
+	public int getPositionOffset(Position position) {
+		RegionCoordinates coordinates = getCoordinates();
+		int dx = position.getX() - coordinates.getAbsoluteX();
+		int dy = position.getY() - coordinates.getAbsoluteY();
+
+		Preconditions.checkArgument(dx >= 0 && dx < Region.SIZE, position + " not in expected Region of " + toString() + ".");
+		Preconditions.checkArgument(dy >= 0 && dy < Region.SIZE, position + " not in expected Region of " + toString() + ".");
+
+		return dx << 4 | dy;
+	}
+
 
 	/**
 	 * Gets the {@link Set} of {@link RegionCoordinates} of Regions that are viewable from the specified
